@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>授業動画レポート作成</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --secondary: #64748b;
+      --danger: #ef4444;
+      --text: #0f172a;
+      --border: #e2e8f0;
+      --sticky-bg: #fef08a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 12px; max-width: 480px; margin: 0 auto; line-height: 1.5; padding-bottom: 40px; }
+    h1 { font-size: 1.25rem; text-align: center; margin: 12px 0 16px; color: var(--primary); font-weight: 800; }
+    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 12px; border-bottom: 2px solid var(--primary); padding-bottom: 4px; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
+    
+    .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .field-input-row { display: flex; gap: 6px; }
+    input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; background: #fff; }
+    input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--primary); }
+    textarea { resize: vertical; min-height: 120px; }
+    
+    button { padding: 8px 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; white-space: nowrap; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:active { background: var(--primary-hover); }
+    .btn-secondary { background: var(--secondary); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--secondary); }
+    .btn-clear-sm { background: #f1f5f9; border: 1px solid var(--border); color: #64748b; padding: 0 10px; font-size: 0.8rem; border-radius: 8px; }
+
+    /* 付箋メモ */
+    .memo-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; min-height: 36px; }
+    .sticky-note { background: var(--sticky-bg); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+    .sticky-note span { cursor: pointer; color: #666; font-weight: bold; }
+
+    /* 箇条書きフォーム */
+    .field-group { margin-bottom: 12px; }
+    .field-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .field-group label { font-size: 0.8rem; font-weight: bold; color: #475569; }
+    
+    .memo-select-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; background: #f1f5f9; padding: 6px; border-radius: 6px; }
+    .memo-chip { background: #fff; border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
+    
+    .char-count { text-align: right; font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+    .warning { color: var(--danger); font-weight: bold; }
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+    .actions button { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <h1>授業動画レポート作成</h1>
+
+  <!-- 手順1: 付箋メモ -->
+  <div class="card">
+    <div class="card-title">手順１：動画視聴メモ（付箋）</div>
+    <div class="input-row">
+      <input type="text" id="memoInput" placeholder="単語や言葉を入力">
+      <button class="btn-primary" onclick="addMemo()">追加</button>
+    </div>
+    <div class="memo-container" id="memoContainer"></div>
+    <button class="btn-outline" style="width: 100%;" onclick="clearMemos()">付箋をすべてクリア</button>
+  </div>
+
+  <!-- 手順2: 定型文箇条書き -->
+  <div class="card">
+    <div class="card-title">
+      手順２：項目への当てはめ
+    </div>
+    <p style="font-size: 0.75rem; color: #64748b; margin-bottom: 12px;">※メモした言葉をタップすると入力欄にセットできます</p>
+    
+    <div id="fieldsContainer"></div>
+    
+    <button class="btn-outline" style="width: 100%; margin-top: 4px; margin-bottom: 8px;" onclick="clearAllFields()">手順2の入力欄をすべてクリア</button>
+    <button class="btn-primary" style="width: 100%; padding: 12px;" onclick="generateReport()">手順３の文章へ変換</button>
+  </div>
+
+  <!-- 手順3 & 4: 文章作成・編集・保存 -->
+  <div class="card">
+    <div class="card-title">手順３・４：レポート編集と保存（200字以内）</div>
+    <textarea id="reportArea" oninput="updateCharCount()" placeholder="手順２でボタンを押すと、穴埋めテンプレートに沿った文章が自動生成されます。"></textarea>
+    <div class="char-count" id="charCount">0 / 200文字</div>
+    
+    <div class="actions">
+      <button class="btn-danger" onclick="clearReport()">クリア</button>
+      <button class="btn-secondary" onclick="copyReport()">コピー</button>
+      <button class="btn-primary" onclick="saveData()">保存する</button>
+    </div>
+  </div>
+
+<script>
+  const fieldList = [
+    { id: 'f1', name: '① 動画のテーマ' },
+    { id: 'f2', name: '② 新しく知ったこと' },
+    { id: 'f3', name: '③ 印象に残ったこと' },
+    { id: 'f4', name: '④ 興味を持ったこと' },
+    { id: 'f5', name: '⑤ 重要だと思ったこと' },
+    { id: 'f6', name: '⑥ メリット・重要性' },
+    { id: 'f7', name: '⑦ 問題点・課題' },
+    { id: 'f8', name: '⑧ 自分の考え' },
+    { id: 'f9', name: '⑨ 今後やりたいこと' },
+    { id: 'f10', name: '⑩ 具体的な行動' }
+  ];
+
+  let memos = [];
+
+  window.onload = () => {
+    renderFields();
+    loadSavedData();
+  };
+
+  // --- 手順1: 付箋メモ処理 ---
+  function addMemo() {
+    const input = document.getElementById('memoInput');
+    const val = input.value.trim();
+    if (val) {
+      memos.push(val);
+      input.value = '';
+      renderMemos();
+      renderFieldMemos();
+    }
+  }
+
+  function removeMemo(index) {
+    memos.splice(index, 1);
+    renderMemos();
+    renderFieldMemos();
+  }
+
+  function clearMemos() {
+    if (confirm('メモをすべて削除しますか？')) {
+      memos = [];
+      renderMemos();
+      renderFieldMemos();
+    }
+  }
+
+  function renderMemos() {
+    const container = document.getElementById('memoContainer');
+    container.innerHTML = memos.map((m, i) => `
+      <div class="sticky-note">
+        ${escapeHtml(m)} <span onclick="removeMemo(${i})">×</span>
+      </div>
+    `).join('');
+  }
+
+  // --- 手順2: フォーム生成と個別・一括クリア ---
+  function renderFields() {
+    const container = document.getElementById('fieldsContainer');
+    container.innerHTML = fieldList.map(f => `
+      <div class="field-group">
+        <div class="field-header">
+          <label>${f.name}</label>
+        </div>
+        <div class="field-input-row">
+          <input type="text" id="${f.id}" placeholder="${f.name}を入力">
+          <button class="btn-clear-sm" onclick="clearSingleField('${f.id}')">消去</button>
+        </div>
+        <div class="memo-select-list" id="chips-${f.id}"></div>
+      </div>
+    `).join('');
+    renderFieldMemos();
+  }
+
+  function clearSingleField(id) {
+    document.getElementById(id).value = '';
+  }
+
+  function clearAllFields() {
+    if (confirm('手順2のすべての入力欄をクリアしますか？')) {
+      fieldList.forEach(f => {
+        document.getElementById(f.id).value = '';
+      });
+    }
+  }
+
+  function renderFieldMemos() {
+    fieldList.forEach(f => {
+      const chipContainer = document.getElementById(`chips-${f.id}`);
+      if (!chipContainer) return;
+      if (memos.length === 0) {
+        chipContainer.style.display = 'none';
+        return;
+      }
+      chipContainer.style.display = 'flex';
+      chipContainer.innerHTML = memos.map(m => `
+        <div class="memo-chip" onclick="insertMemoToField('${f.id}', '${escapeHtml(m)}')">+ ${escapeHtml(m)}</div>
+      `).join('');
+    });
+  }
+
+  function insertMemoToField(fieldId, text) {
+    const input = document.getElementById(fieldId);
+    if (input.value) {
+      input.value += ' ' + text;
+    } else {
+      input.value = text;
+    }
+  }
+
+  // --- 手順3: 穴埋め生成 ---
+  function generateReport() {
+    const getVal = (id, fallback) => {
+      const val = document.getElementById(id).value.trim();
+      return val ? val : `【${fallback}】`;
+    };
+
+    const t1 = getVal('f1', 'テーマ');
+    const t2 = getVal('f2', '新しく知ったこと');
+    const t3 = getVal('f3', '印象に残ったこと');
+    const t4 = getVal('f4', '興味を持ったこと');
+    const t6 = getVal('f6', 'メリット・重要性');
+    const t7 = getVal('f7', '問題点・課題');
+    const t8 = getVal('f8', '自分の考え');
+    const t9 = getVal('f9', '今後やりたいこと');
+    const t10 = getVal('f10', '具体的な行動');
+
+    const text = `今回の授業動画では、${t1}について学びました。動画を視聴して、${t2}ことがよく分かりました。特に印象に残ったのは、${t3}です。また、${t4}について興味を持ち、もっと調べてみようと思いました。${t1}には${t6}がある一方で、${t7}もあることもわかりました。このことから、私は${t8}と考えました。今回学んだことを生かし、今後は${t9}を意識していきたいと思います。さらに、${t10}にも取り組んでみたいと思いました。`;
+
+    document.getElementById('reportArea').value = text;
+    updateCharCount();
+  }
+
+  function updateCharCount() {
+    const text = document.getElementById('reportArea').value;
+    const count = text.length;
+    const elem = document.getElementById('charCount');
+    elem.innerText = `${count} / 200文字`;
+    elem.className = count > 200 ? 'char-count warning' : 'char-count';
+  }
+
+  function clearReport() {
+    if (confirm('作成したレポート文章をクリアしますか？')) {
+      document.getElementById('reportArea').value = '';
+      updateCharCount();
+    }
+  }
+
+  function copyReport() {
+    const text = document.getElementById('reportArea').value;
+    if (!text) return alert('コピーする文章がありません。');
+    navigator.clipboard.writeText(text).then(() => alert('クリップボードにコピーしました！'));
+  }
+
+  // --- 手順4: 保存・復元 ---
+  function saveData() {
+    const formData = {};
+    fieldList.forEach(f => {
+      formData[f.id] = document.getElementById(f.id).value;
+    });
+
+    const data = {
+      memos: memos,
+      form: formData,
+      report: document.getElementById('reportArea').value
+    };
+
+    localStorage.setItem('授業動画レポートData', JSON.stringify(data));
+    alert('データ（メモ・項目・レポート）をローカルに保存しました！');
+  }
+
+  function loadSavedData() {
+    const saved = localStorage.getItem('授業動画レポートData');
+    if (!saved) return;
+    try {
+      const data = JSON.parse(saved);
+      if (data.memos) {
+        memos = data.memos;
+        renderMemos();
+        renderFieldMemos();
+      }
+      if (data.form) {
+        fieldList.forEach(f => {
+          if (data.form[f.id]) document.getElementById(f.id).value = data.form[f.id];
+        });
+      }
+      if (data.report) {
+        document.getElementById('reportArea').value = data.report;
+        updateCharCount();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+</script>
+</body>
+</html>
