@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>授業動画レポート作成</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:#222;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif}
+.app{width:100%;max-width:480px;min-height:100vh;margin:auto;background:#fff}
+header{position:sticky;top:0;z-index:10;padding:14px 16px;background:#fff;border-bottom:1px solid #ddd}
+h1{font-size:20px;margin:0 0 5px}
+.progress{font-size:12px;color:#666}
+main{padding:16px;padding-bottom:90px}
+.step{display:none}.step.active{display:block}
+h2{font-size:18px;margin:0 0 12px}
+h3{font-size:15px;margin:18px 0 8px}
+.help{font-size:13px;color:#666;line-height:1.6}
+.card{background:#f7f8fa;border:1px solid #e0e3e8;border-radius:12px;padding:12px;margin:10px 0}
+textarea,input{width:100%;font:inherit;border:1px solid #cfd4da;border-radius:9px;padding:10px;background:#fff}
+textarea{min-height:80px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 14px;font-weight:600;font-size:14px}
+.primary{background:#2463eb;color:#fff}.secondary{background:#e9edf3;color:#222}.danger{background:#ffe6e6;color:#b00020}
+.nav{position:fixed;bottom:0;left:0;right:0;z-index:20;background:#fff;border-top:1px solid #ddd}
+.nav-inner{max-width:480px;margin:auto;display:flex;gap:8px;padding:10px 12px}
+.nav button{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.chip{background:#fff3b0;border:1px solid #e3c94d;padding:8px 10px;border-radius:18px;font-size:13px}
+.chip button{padding:0 0 0 6px;background:transparent;color:#9a7b00}
+.template{line-height:1.9;font-size:15px}
+.field{margin-bottom:13px}.field label{display:block;font-weight:700;font-size:13px;margin-bottom:5px}
+.count{text-align:right;color:#777;font-size:12px}
+#finalText{min-height:190px}
+.notice{padding:10px;border-radius:9px;background:#eef6ff;font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <h1>授業動画レポート作成</h1>
+  <div class="progress" id="progress">手順1 / 3</div>
+</header>
+
+<main>
+<section class="step active" id="step1">
+  <h2>手順1：授業動画を見ながらメモ</h2>
+  <p class="help">タイトル・見出し、段落の重要なメッセージ、結論・まとめなどから、単語やキーワードを付箋のように追加します。</p>
+  <div class="card">
+    <input id="wordInput" placeholder="単語・キーワードを入力">
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="primary" onclick="addWord()">メモを追加</button>
+      <button class="danger" onclick="clearWords()">すべてクリア</button>
+    </div>
+    <div id="chips" class="chips"></div>
+  </div>
+  <div class="notice">メモした言葉は、手順2の入力欄からタップして選べます。</div>
+</section>
+
+<section class="step" id="step2">
+  <h2>手順2：定型文に当てはめる</h2>
+  <p class="help">下のメモをタップすると、現在選択中の入力欄へ追加されます。</p>
+  <div id="selectableWords" class="chips"></div>
+  <div id="fields"></div>
+</section>
+
+<section class="step" id="step3">
+  <h2>手順3：200字以内にまとめる</h2>
+  <p class="help">手順2の内容をもとに、200字以内で文章を編集できます。</p>
+  <textarea id="finalText" maxlength="200" oninput="updateCount()"></textarea>
+  <div class="count"><span id="count">0</span> / 200字</div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button class="danger" onclick="clearFinal()">文章をクリア</button>
+    <button class="secondary" onclick="makeDraft()">定型文から作成</button>
+  </div>
+  <div class="card">
+    <strong>完成したレポート</strong>
+    <p id="preview" style="white-space:pre-wrap;line-height:1.8"></p>
+  </div>
+  <button class="primary" style="width:100%" onclick="downloadHTML()">HTMLファイルを書き出す</button>
+</section>
+</main>
+
+<div class="nav">
+ <div class="nav-inner">
+  <button class="secondary" onclick="prevStep()">← 戻る</button>
+  <button class="primary" id="nextBtn" onclick="nextStep()">次へ →</button>
+ </div>
+</div>
+</div>
+
+<script>
+const labels=[
+"① この授業のテーマ","② 新しく知ったこと","③ 印象に残ったこと","④ 興味を持ったこと",
+"⑤ 重要だと思ったこと","⑥ メリット・重要性","⑦ 問題点・課題","⑧ 自分の考え",
+"⑨ よくわからなかったこと","⑩ 具体的な行動"
+];
+const keys=["theme","new","impression","interest","important","merit","problem","thought","unknown","action"];
+const placeholders=[
+"この授業のテーマは？","新しく知ったことは？","印象に残ったことは？","興味を持ったことは？",
+"重要だと思ったことは？","どんなメリット・重要性がある？","どんな問題点・課題がある？",
+"自分はどう考えた？","よくわからなかったことは？","具体的に何をしてみたい？"
+];
+let step=1, words=[], values={};
+
+function addWord(){
+ const el=document.getElementById("wordInput"), v=el.value.trim();
+ if(!v)return;
+ words.push(v); el.value=""; renderWords();
+}
+function clearWords(){words=[];renderWords()}
+function renderWords(){
+ const html=words.map((w,i)=>`<span class="chip">${esc(w)} <button onclick="removeWord(${i})">×</button></span>`).join("");
+ document.getElementById("chips").innerHTML=html||'<span class="help">まだメモがありません。</span>';
+ document.getElementById("selectableWords").innerHTML=words.map(w=>`<button class="chip" onclick="insertWord('${escAttr(w)}')">${esc(w)}</button>`).join("");
+}
+function removeWord(i){words.splice(i,1);renderWords()}
+function renderFields(){
+ document.getElementById("fields").innerHTML=labels.map((l,i)=>`
+ <div class="field">
+  <label>${l}</label>
+  <textarea id="f${i}" placeholder="${placeholders[i]}" onclick="activeField=this"></textarea>
+ </div>`).join("");
+}
+let activeField=null;
+function insertWord(w){
+ if(!activeField){alert("先に入力欄をタップしてください。");return}
+ const val=activeField.value;
+ activeField.value=val+(val?"、":"")+w;
+ activeField.focus();
+}
+function saveValues(){
+ for(let i=0;i<10;i++){const e=document.getElementById("f"+i);if(e)values[keys[i]]=e.value}
+}
+function makeDraft(){
+ saveValues();
+ const v=values;
+ let t=`今回の授業動画では、${v.theme||"このテーマ"}について学びました。${v.new?"動画を視聴して、"+v.new+"ことがよく分かりました。":""}${v.impression?"特に印象に残ったのは、"+v.impression+"です。":""}${v.interest?"また、"+v.interest+"について興味を持ち、もっと調べてみようと思いました。":""}${v.merit||v.problem?`${v.theme||"このテーマ"}には${v.merit||"メリット・重要性"}がある一方で、${v.problem||"問題点・課題"}もあることが分かりました。`:""}${v.thought?"このことから、私は"+v.thought+"と考えました。":""}${v.unknown?"今後は今回"+v.unknown+"をもう少し勉強していきたいと思います。":""}${v.action?"さらに、"+v.action+"にも取り組んでみたいと思いました。":""}`;
+ document.getElementById("finalText").value=t.slice(0,200);updateCount();
+}
+function clearFinal(){document.getElementById("finalText").value="";updateCount()}
+function updateCount(){
+ const t=document.getElementById("finalText").value;
+ document.getElementById("count").textContent=t.length;
+ document.getElementById("preview").textContent=t;
+}
+function nextStep(){
+ if(step===1)renderFields();
+ if(step===2){saveValues();makeDraft()}
+ if(step<3)step++; updateStep();
+}
+function prevStep(){if(step>1)step--;updateStep()}
+function updateStep(){
+ document.querySelectorAll(".step").forEach((e,i)=>e.classList.toggle("active",i+1===step));
+ document.getElementById("progress").textContent=`手順${step} / 3`;
+ document.getElementById("nextBtn").textContent=step===3?"最初へ":"次へ →";
+ if(step===3)updateCount();
+ if(step===3)document.getElementById("nextBtn").onclick=()=>{step=1;updateStep()};
+ else document.getElementById("nextBtn").onclick=nextStep;
+}
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function escAttr(s){return s.replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,'&quot;')}
+function downloadHTML(){
+ const text=document.getElementById("finalText").value;
+ const safe=esc(text);
+ const out=`<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>授業動画レポート</title><body style="font-family:sans-serif;max-width:480px;margin:auto;padding:20px;line-height:1.9"><h1>授業動画レポート</h1><p style="white-space:pre-wrap">${safe}</p></body></html>`;
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([out],{type:"text/html;charset=utf-8"}));a.download="授業動画レポート.html";a.click();URL.revokeObjectURL(a.href);
+}
+document.getElementById("wordInput").addEventListener("keydown",e=>{if(e.key==="Enter")addWord()});
+renderWords();renderFields();
+</script>
+</body>
+</html>
